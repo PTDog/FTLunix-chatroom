@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
             perror("Heartbeat initialization");
             exit(1);
         }
-        alarm(heartbeat_itv); //set timer
+        alarm(1); //send heartbeat almost immediately
     }
     while(1){
         if(pid){
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 //                printf("hb sent\n");
                 memset(buf,0,BUFSIZE);
                 /* heartbeat sent but acknowledgement not received*/
-                if(ack_request > 1)
+                if(ack_request == 2)
                     printf("Server unreachable, trying to reconnect...\n");
                 /* notify very 100 heartbeat interval */
                 ack_request = (ack_request < 100)? ack_request + 1 : 0;
