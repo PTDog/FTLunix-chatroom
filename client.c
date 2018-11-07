@@ -1,5 +1,5 @@
-/* 18749 project Client version 3 by Yan 
- * implemented heartbeat and acknowledgement checking 
+/* 18749 project Client version 3 by Yan
+ * implemented heartbeat and acknowledgement checking
  * via SIGALRM and alarm()
  * 11/7/2018 14:08
  */
@@ -22,7 +22,7 @@
 //int heartbeat_itv = 60; //default heartbeat interval
 
 /* heartbeat ready flag, set in sigalrm handler */
-volatile sig_atomic_t hb_ready = 0; 
+volatile sig_atomic_t hb_ready = 0;
 
 
 /* SIGALRM signal handler */
@@ -34,22 +34,23 @@ int main(int argc, char *argv[])
     pid_t pid;
     int clientfd,sendbytes,recvbytes;//定义客户端套接字
     struct hostent *host;
-    
+
     char opt;
-    
+
     char *buf,*msg_in; // send/receive buf and input buf
     char hostname[MAXHOST]={"192.168.0.0"};
     char chatname[MAXNAME]={"Client"};
-    
+
     /* heartbeat relevant */
     int heartbeat_itv = 60; //default heatbeat interval (secs)
-    /* acknowledgement requirement flag, increment after 
+    /* acknowledgement requirement flag, increment after
      * sending heartbeat, reset on received acknowledgement */
     int ack_request = 0;
-    
+    int verbose = 0;
+
     int port = 3490;
     strcpy(chatname,"Client");
-    while((opt = getopt(argc,argv,"hH:p:n:b:"))!= -1){
+    while((opt = getopt(argc,argv,"hH:p:n:b:v"))!= -1){
         switch(opt){
             case 'h':
                 printf("\t-h\t\tprint this message\n");
@@ -57,6 +58,7 @@ int main(int argc, char *argv[])
                 printf("\t-p <port>\tdesignate port number(3490 by default)\n");
                 printf("\t-n <chatname>\tEnter your chat name\n");
                 printf("\t-b <heartbeat>\tconfig heartbeat interval(60 secs by defalut)\n");
+                printf("\t-v\tbeing verbose,print out heartbeat related infos\n");
                 return 0;
             case 'H':
                 strncpy(hostname,optarg,MAXHOST);
@@ -70,13 +72,16 @@ int main(int argc, char *argv[])
             case 'b':
                 heartbeat_itv = atoi(optarg);
                 break;
+            case 'v':
+                verbose = 1;
+                break;
             default:
                 printf("check %s -h for help\n",argv[0]);
                 return 0;
-        
+
         }
     }
-    
+
     host = gethostbyname(hostname);
     if((clientfd = socket(AF_INET,SOCK_STREAM,0)) == -1){ //创建客户端套接字
         perror("socket\n");
@@ -112,20 +117,20 @@ int main(int argc, char *argv[])
         perror("fork");
         exit(1);
     }
-//    install sigalm handler for child process. 
+//    install sigalm handler for child process.
     if (pid == 0){
         if(signal(SIGALRM,sigalrm_handler) == SIG_ERR){
             perror("Heartbeat initialization");
             exit(1);
         }
         alarm(heartbeat_itv); //set timer
-    } 
+    }
     while(1){
         if(pid){
         //父进程用于发送信息
 
 //        get_cur_time(time_str);
-        
+
             memset(buf,0,BUFSIZE);
             strcpy(buf,chatname);
             strcat(buf,":");
@@ -147,7 +152,6 @@ int main(int argc, char *argv[])
             memset(buf,0,BUFSIZE);
             if(hb_ready == 1){
                 strcpy(buf,"Are you alive?");
-//                printf("sending\n");
                 if((sendbytes = send(clientfd,buf,strlen(buf),0)) == -1){
                     perror("send\n");
                 }
@@ -155,8 +159,9 @@ int main(int argc, char *argv[])
                 memset(buf,0,BUFSIZE);
                 /* heartbeat sent but acknowledgement not received*/
                 if(ack_request > 1)
-                    printf("Server unreachable\n");
-                ack_request += 1;
+                    printf("Server unreachable, trying to reconnect...\n");
+                /* notify very 100 heartbeat interval */
+                ack_request = (ack_request < 100)? ack_request + 1 : 0;
                 hb_ready = 0;
                 alarm(heartbeat_itv); //reset timer
             }
@@ -164,25 +169,28 @@ int main(int argc, char *argv[])
                 /* normally continue if no msg received*/
                 if(errno == EAGAIN)
                     continue;
-                
+
                 perror("recv");
                 //kill parent
                 if(!kill(getppid(),SIGINT)){
-                    perror("Failed to terminate parent process:");
+                    perror("Failed to terminate parent process");
                 }
                 break;
             }
             /* acknowledgement received */
-            if(!strcmp(buf,"I am alive!")){
+            if(!strncmp(buf,"I am alive!",11)){ //temporarily "get rid of" unexpected time stamp
                 ack_request = 0;
+                if(verbose)
+                printf("%s\n",buf);
             }
-            printf("%s\n",buf);
+            else
+                printf("%s\n",buf);
         }
     }
     free(buf);
     free(msg_in);
     close(clientfd);
-    return 0; 
+    return 0;
 }
 /* SIGALRM signal handler, set hb_ready when alarmed */
 void sigalrm_handler(){
