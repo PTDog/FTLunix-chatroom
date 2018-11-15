@@ -171,6 +171,7 @@ int main(int argc, char *argv[])
                 /* notify very 100 heartbeat interval */
                 ack_request = (ack_request < 5)? ack_request + 1 : ack_request;
                 /* timeout, bring backup */
+                
                 if(backup && ack_request == 5){
                     printf("Connect to backup server %s in  ",backup_host);
                     for(int i = 5;i >= 0;i--){
@@ -182,13 +183,14 @@ int main(int argc, char *argv[])
                     if(kill(pid,SIGINT) == -1){ //kill parent
                         perror("Failed to terminate parent process");
                     }
+                    // restarting client with new host
                     char _hb[4];
                     snprintf(_hb,4,"%d",heartbeat_itv);
-                    char *args[60]={argv[0],"-H",backup_host,"-b",_hb,NULL};
+                    char *myargv[60]={argv[0],"-H",backup_host,"-b",_hb,NULL};
                     free(buf);
                     free(msg_in);
                     close(clientfd);
-                    if(execve(argv[0], argv, 0)<0)
+                    if(execve(argv[0], myargv, 0)<0)
                         perror("Bringing backup");
                     exit(0);
                 }
