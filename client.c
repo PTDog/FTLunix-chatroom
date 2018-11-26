@@ -137,31 +137,24 @@ int main(int argc, char *argv[])
         if(!pid){
         //子进程用于发送信息
 
-//        get_cur_time(time_str);
-
             memset(buf,0,BUFSIZE);
             strcpy(buf,chatname);
             strcat(buf,":");
             fgets(msg_in,BUFSIZE,stdin);
             strncat(buf,msg_in,strlen(msg_in)-1);
-            //strcat(buf,time_str);
-            //printf("---%s\n",buf);
             if((sendbytes = send(clientfd,buf,strlen(buf),0)) == -1){
                 perror("send\n");
-                //kill parent
-                if(!kill(getppid(),SIGINT)){
-                    perror("Failed to terminate child process");
-                }
                 break;
             }
         }
         else{
         //父进程用于接收信息以及收发心跳
+            signal(SIGPIPE, SIG_IGN);
             memset(buf,0,BUFSIZE);
             if(hb_ready == 1){
                 strcpy(buf,"Are you alive?");
                 if((sendbytes = send(clientfd,buf,strlen(buf),0)) == -1){
-                    perror("send\n");
+                    // perror("send\n");
                 }
 //                printf("hb sent\n");
                 memset(buf,0,BUFSIZE);
@@ -171,7 +164,7 @@ int main(int argc, char *argv[])
                 /* notify very 100 heartbeat interval */
                 ack_request = (ack_request < 5)? ack_request + 1 : ack_request;
                 /* timeout, bring backup */
-                
+
                 if(backup && ack_request == 5){
                     printf("Connect to backup server %s in  ",backup_host);
                     for(int i = 5;i >= 0;i--){
@@ -201,16 +194,10 @@ int main(int argc, char *argv[])
                 /* normally continue if no msg received*/
                 if(errno == EAGAIN)
                     continue;
-
-                perror("recv");
-                //kill child
-                if(kill(pid,SIGINT) == -1){
-                    printf("Failed to terminate parent process");
-                }
-                break;
+                continue;
             }
             /* acknowledgement received */
-            if(!strncmp(buf,"I am alive!",11)){ //temporarily "get rid of" unexpected time stamp
+            if(!strcmp(buf,"I am alive!")){ //temporarily "get rid of" unexpected time stamp
                 ack_request = 0;
                 if(verbose)
                 printf("%s\n",buf);
@@ -234,4 +221,3 @@ void sigalrm_handler(){
     hb_ready = 1;
     return;
 }
-
