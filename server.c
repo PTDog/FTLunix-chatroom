@@ -3,6 +3,7 @@
 #include <sys/types.h> //数据类型定义
 #include <sys/stat.h>
 #include <netinet/in.h> //定义数据结构sockaddr_in
+#include <arpa/inet.h> //定义数据结构sockaddr_in
 #include <sys/socket.h> //提供socket函数及数据结构
 #include <string.h>
 #include <unistd.h>
@@ -117,7 +118,7 @@ int main(int argc, char *argv[])
 			perror("accept");
 			exit(1);
 		}
-		printf("accept from:%d\n",inet_ntoa(their_addr.sin_addr));
+		printf("accept from:%s\n",inet_ntoa(their_addr.sin_addr));
 		send(clientfd,WELCOME,strlen(WELCOME),0);//发送问候信息
 		buf = (char *)malloc(255);
 
@@ -167,7 +168,7 @@ int main(int argc, char *argv[])
 							//strcpy(temp, "I am alive!");
 							strcpy(r_addr, "I am alive!");
 
-							strcpy(temp,r_addr);
+							//strcpy(temp,r_addr);
 						}
 						else {
 								
@@ -175,7 +176,7 @@ int main(int argc, char *argv[])
 								get_cur_time(time_str); 
 								strcat(r_addr,time_str);	
 							}
-						strcpy(temp,r_addr);
+						//strcpy(temp,r_addr);
 						printf("%s\n", r_addr);
 					//printf("discriptor:%d\n",clientfd);
 					//if(send(clientfd,buf,strlen(buf),0) == -1)
